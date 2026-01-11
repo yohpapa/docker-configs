@@ -1,0 +1,46 @@
+services:
+  # Tailscale Identity
+  ts-ai:
+    image: tailscale/tailscale:latest
+    container_name: ts-ai
+    hostname: ollama-ui
+    env_file: .env
+    command: >
+      sh -c "tailscaled &
+      until tailscale status; do sleep 5; done;
+      tailscale serve reset;
+      tailscale serve --https=443 http://127.0.0.1:8080;
+      wait"
+    volumes:
+      - ./tailscale_state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: unless-stopped
+
+  # Ollama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    network_mode: service:ts-ai
+    environment:
+      - OLLAMA_VULKAN=1
+    volumes:
+      - ./ollama_data:/root/.ollama
+      - /run/opengl-driver:/run/opengl-driver:ro
+    devices:
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+
+  # Open WebUI
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    network_mode: service:ts-ai
+    environment:
+      - 'OLLAMA_BASE_URL=http://localhost:11434'
+      - 'WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}'
+    volumes:
+      - ./webui_data:/app/backend/data
+    restart: unless-stopped

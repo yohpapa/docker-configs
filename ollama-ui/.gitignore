@@ -1,0 +1,4 @@
+.env
+tailscale_state/
+ollama_data/
+webui_data/
